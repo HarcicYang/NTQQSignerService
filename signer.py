@@ -159,7 +159,7 @@ async def sign_service_endpoint(request: SignRequest) -> SignResponse:
             detail=f"Sign service error: {str(e)}"
         )
 
-@app.get("/appinfo")
+@app.get("/sign/appinfo")
 def appinfo():
     with open("./appinfo.json") as f_:
         return json.loads(f_.read())
