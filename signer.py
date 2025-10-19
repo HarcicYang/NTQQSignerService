@@ -2,14 +2,14 @@
 
 import binascii
 import json
-import os
-from typing import List, Dict, Any
+from typing import List
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 import uvicorn
 from contextlib import asynccontextmanager
 
 try:
+    # noinspection PyUnresolvedReferences
     import cSigner
 
     C_EXTENSION_AVAILABLE = True

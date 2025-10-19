@@ -1,0 +1,4 @@
+setuptools~=68.2.0
+uvicorn~=0.38.0
+fastapi~=0.119.0
+pydantic~=2.12.3

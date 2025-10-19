@@ -57,24 +57,17 @@ def compile_symbols_lib():
 
 def install_python_deps():
     print("Installing Python dependencies...")
-
-    dependencies = [
-        'fastapi',
-        'uvicorn[standard]',
-        'pydantic'
-    ]
-
-    for dep in dependencies:
-        try:
-            subprocess.run([
-                sys.executable, '-m', 'pip', 'install', dep
-            ], check=True, capture_output=True)
-            print(f"✓ Installed {dep}")
-        except subprocess.CalledProcessError:
-            print(f"✗ Failed to install {dep}")
-            return False
-
-    return True
+    try:
+        subprocess.run(
+            [sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'],
+            check=True,
+            capture_output=True
+        )
+        print(f"✓ Installed requirements.txt")
+        return True
+    except subprocess.CalledProcessError:
+        print(f"✗ Failed to install requirements.txt")
+        return False
 
 
 def check_wrapper_node():
