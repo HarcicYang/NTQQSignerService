@@ -2,6 +2,7 @@
 
 import binascii
 import json
+import sys
 from typing import List
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
@@ -18,9 +19,11 @@ except ImportError as e:
     print(f"✗ Failed to load C extension: {e}")
     print("Please compile the C extension first: python setup.py build_ext --inplace")
     C_EXTENSION_AVAILABLE = False
-    import sys
-
     sys.exit(1)
+
+# 全局变量，用于存储配置和appinfo
+CONFIG = {}
+APP_INFO = {}
 
 try:
     with open("./signer.json", "r") as f:
@@ -33,7 +36,7 @@ except FileNotFoundError:
             "host": "127.0.0.1",
             "port": 8080,
             "libs": ["libgnutls.so.30", "./libsymbols.so"],
-            "offset": ""
+            "offset": "(0, 0, 0, 0, 0, 0)"
         }
         f.write(json.dumps(cfg, indent=2))
     print(
@@ -54,6 +57,8 @@ class ValueResponse(BaseModel):
 
 
 class SignResponse(BaseModel):
+    platform: str = Field(..., description="Platform information from appinfo.json")
+    version: str = Field(..., description="App version from appinfo.json")
     value: ValueResponse
 
 
@@ -101,6 +106,18 @@ async def lifespan(app: FastAPI):
     if not sign_service.initialize():
         raise RuntimeError("Failed to initialize sign service")
 
+    try:
+        with open("./appinfo.json", "r") as f:
+            global APP_INFO
+            APP_INFO = json.loads(f.read())
+        print("✓ appinfo.json loaded successfully.")
+    except FileNotFoundError:
+        print("✗ appinfo.json not found. Platform and version information will be 'Unknown'.")
+        APP_INFO = {}
+    except json.JSONDecodeError as e:
+        print(f"✗ Error decoding appinfo.json: {e}. Platform and version information will be 'Unknown'.")
+        APP_INFO = {}
+
     print(f"✓ Service initialized successfully on {CONFIG['host']}:{CONFIG['port']}")
 
     yield
@@ -137,7 +154,13 @@ async def sign_service_endpoint(request: SignRequest) -> SignResponse:
     print(f"Signing for: Request({request})")
     try:
         token, extra, sign_data = sign_service.sign(request.cmd, request.src, request.seq)
+
+        platform_val = APP_INFO.get("Os", "Unknown")
+        version_val = APP_INFO.get("CurrentVersion", "Unknown")
+
         response = SignResponse(
+            platform=platform_val,
+            version=version_val,
             value=ValueResponse(
                 token=binascii.hexlify(token).decode().upper(),
                 extra=binascii.hexlify(extra).decode().upper(),
@@ -160,9 +183,14 @@ async def sign_service_endpoint(request: SignRequest) -> SignResponse:
         )
 
 @app.get("/sign/appinfo")
-def appinfo():
-    with open("./appinfo.json") as f_:
-        return json.loads(f_.read())
+def appinfo_endpoint():
+    if APP_INFO:
+        return APP_INFO
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="appinfo.json not loaded or found."
+        )
 
 
 def main():
